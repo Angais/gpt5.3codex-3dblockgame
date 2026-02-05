@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VoxelCraft - Three.js Minecraft Clone</title>
+    <link rel="stylesheet" href="style.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+
+    <div id="overlay">
+      <div id="top-left">
+        <div id="title">VoxelCraft</div>
+        <div id="debug"></div>
+      </div>
+
+      <div id="crosshair" aria-hidden="true"></div>
+
+      <div id="bottom-ui">
+        <div id="block-name">Selected: Grass Block</div>
+        <div id="hotbar"></div>
+      </div>
+
+      <div id="start-screen">
+        <h1>VoxelCraft</h1>
+        <p>Click to lock pointer and play</p>
+        <ul>
+          <li><span>WASD</span> Move</li>
+          <li><span>Space</span> Jump</li>
+          <li><span>Shift</span> Sprint</li>
+          <li><span>Mouse Left</span> Break block</li>
+          <li><span>Mouse Right</span> Place block</li>
+          <li><span>RMB + Comparator</span> Toggle comparator mode</li>
+          <li><span>1-9 / Scroll</span> Select block</li>
+          <li><span>F3</span> Toggle debug</li>
+        </ul>
+      </div>
+    </div>
+
+    <script type="module" src="src/main.js"></script>
+  </body>
+</html>

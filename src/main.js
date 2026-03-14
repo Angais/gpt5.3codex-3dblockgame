@@ -18,6 +18,8 @@ import {
 import { CONFIG } from "./config.js";
 import { PlayerController } from "./player.js";
 import { VoxelWorld } from "./world.js";
+import { NetworkClient } from "./network.js";
+import { RemotePlayers } from "./remote-players.js";
 
 const canvas = document.getElementById("game");
 const debugEl = document.getElementById("debug");
@@ -56,6 +58,38 @@ const seed = params.get("seed") || "voxelcraft";
 const world = new VoxelWorld(scene, { seed });
 
 const player = new PlayerController(camera, document.body, world);
+
+// ─── Multiplayer ─────────────────────────────────────────────────────────────
+const remotePlayers = new RemotePlayers(scene);
+
+const network = new NetworkClient(undefined, {
+  onInit(data) {
+    // Spawn existing remote players.
+    for (const p of data.players) {
+      remotePlayers.update(p.playerId, p.x, p.y, p.z, p.yaw);
+    }
+    // Apply block edits that happened before we joined.
+    for (const edit of data.blockEdits) {
+      world.setBlock(edit.x, edit.y, edit.z, edit.blockId);
+    }
+    if (data.blockEdits.length > 0) {
+      world.processDirtyChunks(CONFIG.MAX_MESH_REBUILDS_PER_FRAME * 8);
+    }
+  },
+  onPlayerMove(data) {
+    remotePlayers.update(data.playerId, data.x, data.y, data.z, data.yaw);
+  },
+  onBlockChange(data) {
+    world.setBlock(data.x, data.y, data.z, data.blockId);
+    world.processRedstoneUpdates(CONFIG.REDSTONE_UPDATES_PER_FRAME * 2);
+    world.processFluidUpdates(CONFIG.WATER_UPDATES_PER_FRAME * 2);
+    world.processDirtyChunks(CONFIG.MAX_MESH_REBUILDS_PER_FRAME * 4);
+  },
+  onPlayerLeave(data) {
+    remotePlayers.remove(data.playerId);
+  },
+});
+// ─────────────────────────────────────────────────────────────────────────────
 scene.add(player.getObject());
 
 const selectionMesh = new THREE.LineSegments(
@@ -255,6 +289,7 @@ function tryBreakBlock() {
   if (!changed) {
     return;
   }
+  network.sendBlockChange(x, y, z, 0 /* AIR */);
   world.processRedstoneUpdates(CONFIG.REDSTONE_UPDATES_PER_FRAME * 2);
   world.processFluidUpdates(CONFIG.WATER_UPDATES_PER_FRAME * 2);
   world.processDirtyChunks(CONFIG.MAX_MESH_REBUILDS_PER_FRAME * 4);
@@ -295,6 +330,7 @@ function tryPlaceBlock() {
   if (!placed) {
     return;
   }
+  network.sendBlockChange(x, y, z, placeId);
 
   if (placeId === BLOCK.WATER) {
     world.processFluidUpdates(CONFIG.WATER_UPDATES_PER_FRAME * 3);
@@ -418,6 +454,17 @@ function frame(now) {
   world.update(tmpFeet.x, tmpFeet.z);
 
   player.update(dt);
+
+  // Broadcast our position to the server (throttled to 20 Hz in NetworkClient).
+  if (player.isLocked()) {
+    player.getEyePosition(tmpOrigin);
+    const euler = new THREE.Euler().setFromQuaternion(
+      camera.quaternion,
+      "YXZ",
+    );
+    network.sendMove(tmpOrigin, euler.y, euler.x);
+  }
+
   updateSelectionTarget();
   updateDayCycle(dt);
 
